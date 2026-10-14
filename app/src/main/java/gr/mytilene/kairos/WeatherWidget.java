@@ -82,6 +82,18 @@ public class WeatherWidget extends AppWidgetProvider {
         }).start();
     }
 
+    /** Κατανοητή αιτία αποτυχίας. */
+    static String reason(Exception e) {
+        String m = String.valueOf(e.getMessage());
+        if (m.startsWith("HTTP 404")) return "Το Pi δεν έχει ακόμα το widget (HTTP 404)";
+        if (m.startsWith("HTTP 5")) return "Σφάλμα στο Pi (" + m + ")";
+        if (m.startsWith("HTTP")) return "Το Pi απάντησε " + m;
+        if (e instanceof java.net.SocketTimeoutException) return "Το Pi δεν απαντά (timeout)";
+        if (e instanceof java.net.UnknownHostException || e instanceof java.net.ConnectException
+                || e instanceof java.net.NoRouteToHostException) return "Χωρίς σύνδεση με το Pi (Tailscale;)";
+        return "Χωρίς σύνδεση με το Pi: " + e.getClass().getSimpleName();
+    }
+
     /** Κατεβάζει την εικόνα και ενημερώνει όλα τα widget. */
     static void update(Context ctx) {
         AppWidgetManager mgr = AppWidgetManager.getInstance(ctx);
@@ -113,10 +125,12 @@ public class WeatherWidget extends AppWidgetProvider {
             }
             if (!tmp.renameTo(file)) throw new Exception("αποθήκευση");
         } catch (Exception e) {
-            err = "Χωρίς σύνδεση με το Pi"
+            err = reason(e)
                     + (file.exists() ? " · εικόνα " + new SimpleDateFormat("HH:mm", Locale.getDefault())
                     .format(new Date(file.lastModified())) : "");
         }
+        Prefs.get(ctx).edit().putString("last_error", err == null ? "" : err)
+                .putLong("last_try", System.currentTimeMillis()).apply();
         Uri img = Uri.parse("content://" + ImageProvider.AUTHORITY + "/widget.png?t=" + file.lastModified());
         Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse(base));
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

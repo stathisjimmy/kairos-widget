@@ -104,6 +104,22 @@ public class MainActivity extends Activity {
         open.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(Prefs.url(this)))));
         box.addView(open, new LinearLayout.LayoutParams(lp));
 
+        final TextView status = label("", 13, false);
+        Button test = new Button(this);
+        test.setText("Δοκιμή σύνδεσης με το Pi");
+        test.setOnClickListener(v -> {
+            Prefs.get(this).edit().putString("url", url.getText().toString()).apply();
+            status.setText("Δοκιμή…");
+            new Thread(() -> {
+                WeatherWidget.update(getApplicationContext());
+                String e = Prefs.get(this).getString("last_error", "");
+                String msg = e.isEmpty() ? "✅ OK — η εικόνα κατέβηκε από " + Prefs.url(this) : "⚠ " + e;
+                runOnUiThread(() -> status.setText(msg));
+            }).start();
+        });
+        box.addView(test, new LinearLayout.LayoutParams(lp));
+        box.addView(status);
+
         TextView note = label("Το κινητό πρέπει να βλέπει το Pi (Tailscale ενεργό). "
                 + "Η εικόνα φτιάχνεται στο Pi: " + Prefs.url(this) + "/api/widget.png", 12, false);
         note.setGravity(Gravity.START);
